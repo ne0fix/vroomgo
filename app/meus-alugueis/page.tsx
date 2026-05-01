@@ -16,7 +16,7 @@ export default async function MeusAlugueisPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const reservasFormatadas = reservas.map((r) => ({
+  const reservasFormatadas = reservas.map((r: (typeof reservas)[number]) => ({
     id: r.id,
     veiculo: {
       nome: `${r.veiculo.marca} ${r.veiculo.modelo}`,
