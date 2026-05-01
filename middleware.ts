@@ -1,35 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import NextAuth from "next-auth";
+import { authConfig } from "./auth.config";
 
-export async function middleware(request: NextRequest) {
-  const session = await auth();
+const { auth } = NextAuth(authConfig);
+
+export default auth(function middleware(request) {
+  const session = request.auth;
   const pathname = request.nextUrl.pathname;
 
-  // Rotas que precisam de autenticação
-  const rotasProtegidas = ['/meus-alugueis', '/checkout', '/reserva'];
-  const ehRotaProtegida = rotasProtegidas.some(rota => pathname.startsWith(rota));
+  const rotasProtegidas = ["/meus-alugueis", "/checkout", "/reserva"];
+  const ehRotaProtegida = rotasProtegidas.some((rota) =>
+    pathname.startsWith(rota)
+  );
 
   if (ehRotaProtegida && !session) {
-    // Redirecionar para login com callbackUrl
-    const callbackUrl = encodeURIComponent(pathname + request.nextUrl.search);
-    return NextResponse.redirect(
+    const callbackUrl = encodeURIComponent(
+      pathname + request.nextUrl.search
+    );
+    return Response.redirect(
       new URL(`/login?callbackUrl=${callbackUrl}`, request.url)
     );
   }
 
-  // Rotas admin
-  if (pathname.startsWith('/dashboard') && session?.user?.role !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/', request.url));
+  if (
+    pathname.startsWith("/dashboard") &&
+    session?.user?.role !== "ADMIN"
+  ) {
+    return Response.redirect(new URL("/", request.url));
   }
-
-  return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: [
-    '/meus-alugueis/:path*',
-    '/checkout/:path*',
-    '/reserva/:path*',
-    '/dashboard/:path*',
+    "/meus-alugueis/:path*",
+    "/checkout/:path*",
+    "/reserva/:path*",
+    "/dashboard/:path*",
   ],
 };
