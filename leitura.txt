@@ -1,0 +1,46 @@
+Implementação da Migração Stripe -> Mercado Pago (VroomGo)
+
+Ações Realizadas:
+
+1. Dependências:
+   - Instalado SDK oficial do Mercado Pago: npm install mercadopago@^2.0.0
+
+2. Banco de Dados (Prisma):
+   - Atualizado schema.prisma: Removidos campos 'stripePaymentIntentId' e 'stripeChargeId' da model 'Transacao'.
+   - Adicionados campos 'mpPreferenceId', 'mpPaymentId', 'mpStatus' e 'mpStatusDetail' à model 'Transacao'.
+   - Regenerado Prisma Client para refletir as mudanças.
+
+3. Configuração:
+   - Criado lib/mercadopago.ts para inicialização do SDK.
+   - Removido lib/stripe.ts.
+   - Atualizado .env e .env.example com variáveis do Mercado Pago e NEXT_PUBLIC_APP_URL.
+
+4. Lógica de Negócio (Services):
+   - Reescrevido services/PagamentoService.ts:
+     - Implementado criarPreferencia (cria checkout no MP).
+     - Implementado processarPagamentoAprovado (webhook).
+     - Implementado liberarCaucao (reembolso via MP).
+     - Implementado reterCaucao (retenção manual).
+     - Implementado consultarPagamento.
+
+5. API Routes:
+   - Atualizado app/api/pagamentos/checkout/route.ts.
+   - Criado app/api/pagamentos/webhook/route.ts.
+   - Criado app/api/pagamentos/[reservaId]/liberar-caucao/route.ts.
+   - Criado app/api/pagamentos/[reservaId]/reter-caucao/route.ts.
+   - Corrigido app/api/auth/register/route.ts (erro Zod blocking build).
+
+6. Interface (UI):
+   - Criada página app/reserva/[id]/page.tsx (Resumo e Botão de Pagamento).
+   - Criado componente components/BotaoPagarMP.tsx.
+   - Criada página app/checkout/sucesso/page.tsx.
+   - Criada página app/checkout/falhou/page.tsx.
+   - Criada página app/checkout/pendente/page.tsx.
+   - Atualizada página app/meus-alugueis/page.tsx para usar dados reais do banco.
+
+7. Correções de Compatibilidade (Next.js 15):
+   - Atualizados componentes e rotas que usam 'params' e 'searchParams' para lidar com Promises (await params).
+
+Status Final: Build de produção concluído com sucesso.
+Data: 2026-05-01
+Implementador: Gemini CLI

@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["clientExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoleUsuario {
+  CLIENTE
+  ADMIN
+}
+
+enum StatusVeiculo {
+  DISPONIVEL
+  ALUGADO
+  MANUTENCAO
+}
+
+enum CategoriaVeiculo {
+  HATCH
+  SEDA
+  SUV
+  PICKUP
+  ELETRICO
+  VAN
+}
+
+enum StatusReserva {
+  PENDENTE
+  CONFIRMADA
+  ATIVA
+  CONCLUIDA
+  CANCELADA
+}
+
+enum StatusPagamento {
+  PENDENTE
+  PRE_AUTORIZADO
+  PAGO
+  ESTORNADO
+  FALHOU
+}
+
+model Usuario {
+  id                String       @id @default(cuid())
+  nome              String
+  email             String       @unique
+  emailVerificado   DateTime?    @map("email_verificado")
+  senha             String?
+  telefone          String?
+  cpf               String?      @unique
+  urlCnh            String?      @map("url_cnh")
+  urlComprovante    String?      @map("url_comprovante")
+  documentosValidos Boolean      @default(false) @map("documentos_validos")
+  role              RoleUsuario  @default(CLIENTE)
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  reservas  Reserva[]
+  contas    Conta[]
+  sessoes   Sessao[]
+
+  @@map("usuarios")
+}
+
+model Conta {
+  id                String  @id @default(cuid())
+  usuarioId         String  @map("usuario_id")
+  tipo              String
+  provedor          String
+  provedorContaId   String  @map("provedor_conta_id")
+  accessToken       String? @map("access_token") @db.Text
+  refreshToken      String? @map("refresh_token") @db.Text
+  expiresAt         Int?    @map("expires_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([provedor, provedorContaId])
+  @@map("contas")
+}
+
+model Sessao {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  usuarioId    String   @map("usuario_id")
+  expires      DateTime
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("sessoes")
+}
+
+model Veiculo {
+  id            String           @id @default(cuid())
+  marca         String
+  modelo        String
+  ano           Int
+  placa         String           @unique
+  categoria     CategoriaVeiculo
+  status        StatusVeiculo    @default(DISPONIVEL)
+  precoDiaria   Decimal          @map("preco_diaria") @db.Decimal(10, 2)
+  caucaoValor   Decimal          @map("caucao_valor") @db.Decimal(10, 2)
+  quilometragem Int              @default(0)
+  cor           String
+  transmissao   String           @default("AUTOMATICO")
+  combustivel   String           @default("FLEX")
+  lugares       Int              @default(5)
+  descricao     String?          @db.Text
+  fotos         String[]
+  opcionais     String[]
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  reservas Reserva[]
+
+  @@map("veiculos")
+}
+
+model Reserva {
+  id              String        @id @default(cuid())
+  usuarioId       String        @map("usuario_id")
+  veiculoId       String        @map("veiculo_id")
+  dataInicio      DateTime      @map("data_inicio")
+  dataFim         DateTime      @map("data_fim")
+  totalDias       Int           @map("total_dias")
+  valorDiaria     Decimal       @map("valor_diaria") @db.Decimal(10, 2)
+  valorTotal      Decimal       @map("valor_total") @db.Decimal(10, 2)
+  valorCaucao     Decimal       @map("valor_caucao") @db.Decimal(10, 2)
+  opcionais       Json          @default("[]")
+  status          StatusReserva @default(PENDENTE)
+  observacoes     String?       @db.Text
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  usuario    Usuario    @relation(fields: [usuarioId], references: [id])
+  veiculo    Veiculo    @relation(fields: [veiculoId], references: [id])
+  transacoes Transacao[]
+
+  @@map("reservas")
+}
+
+model Transacao {
+  id              String          @id @default(cuid())
+  reservaId       String          @map("reserva_id")
+  mpPreferenceId  String?         @unique @map("mp_preference_id")
+  mpPaymentId     String?         @unique @map("mp_payment_id")
+  mpStatus        String?         @map("mp_status")
+  mpStatusDetail  String?         @map("mp_status_detail")
+  tipo            String
+  valor           Decimal         @db.Decimal(10, 2)
+  status          StatusPagamento @default(PENDENTE)
+  metodoPagamento String?         @map("metodo_pagamento")
+  descricao       String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  reserva Reserva @relation(fields: [reservaId], references: [id])
+
+  @@map("transacoes")
+}
