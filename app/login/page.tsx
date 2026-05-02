@@ -36,8 +36,8 @@ export default function LoginPage() {
       }
 
       // Login bem-sucedido
-      router.refresh();
       router.push(callbackUrl);
+      router.refresh();
     } catch (erro) {
       console.error('Erro ao fazer login:', erro);
       setErro('Ocorreu um erro. Tente novamente.');
