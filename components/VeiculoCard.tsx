@@ -30,12 +30,12 @@ export function VeiculoCard({ veiculo }: VeiculoCardProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 group">
       {/* Imagem */}
-      <div className="relative h-36 md:h-48 overflow-hidden bg-gray-100">
+      <div className="relative h-36 md:h-48 overflow-hidden bg-gray-50">
         <Image
           src={imagemPrincipal}
           alt={`${veiculo.marca} ${veiculo.modelo}`}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className="object-contain p-3 group-hover:scale-105 transition-transform duration-300"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
         <div className="absolute top-2 left-2 md:top-3 md:left-3">

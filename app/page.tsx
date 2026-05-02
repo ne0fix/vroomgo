@@ -88,12 +88,12 @@ export default async function HomePage() {
                 className="bg-white rounded-2xl overflow-hidden hover:shadow-xl transition-shadow duration-300"
               >
                 {/* Imagem */}
-                <div className="relative w-full h-36 md:h-44 bg-gray-200 overflow-hidden">
+                <div className="relative w-full h-36 md:h-44 bg-gray-50 overflow-hidden">
                   <Image
                     src={veiculo.fotos[0] || "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400"}
                     alt={`${veiculo.marca} ${veiculo.modelo}`}
                     fill
-                    className="object-cover hover:scale-105 transition-transform duration-300"
+                    className="object-contain p-3 hover:scale-105 transition-transform duration-300"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
                   <div className="absolute top-3 right-3 bg-[#00d084] text-white px-2.5 py-1 rounded-full text-xs font-semibold">
