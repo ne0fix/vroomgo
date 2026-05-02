@@ -74,12 +74,12 @@ export default async function VeiculoDetalhePage({ params }: Props) {
             </div>
 
             {/* Imagem Principal */}
-            <div className="relative h-52 sm:h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden bg-gray-200">
+            <div className="relative h-52 sm:h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden bg-gray-50">
               <Image
                 src={imagemPrincipal}
                 alt={`${veiculo.marca} ${veiculo.modelo}`}
                 fill
-                className="object-cover"
+                className="object-contain p-4"
                 priority
                 sizes="(max-width: 1024px) 100vw, 66vw"
               />
@@ -89,8 +89,8 @@ export default async function VeiculoDetalhePage({ params }: Props) {
             {imagensGaleria.length > 0 && (
               <div className="grid grid-cols-3 gap-2 md:gap-3">
                 {imagensGaleria.map((foto, i) => (
-                  <div key={i} className="relative h-20 md:h-24 rounded-xl overflow-hidden bg-gray-200">
-                    <Image src={foto} alt={`Foto ${i + 2}`} fill className="object-cover" sizes="200px" />
+                  <div key={i} className="relative h-20 md:h-24 rounded-xl overflow-hidden bg-gray-50">
+                    <Image src={foto} alt={`Foto ${i + 2}`} fill className="object-contain p-2" sizes="200px" />
                   </div>
                 ))}
               </div>
