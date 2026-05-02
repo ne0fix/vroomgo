@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pagamentoService } from "@/services/PagamentoService";
-import { mpPayment, getOrder, getOrderByPaymentId } from "@/lib/mercadopago";
+import { mpPayment, getOrder } from "@/lib/mercadopago";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,46 +13,35 @@ export async function POST(request: NextRequest) {
     const bodyType = body?.type ?? topic;
 
     const rawId = idParam || bodyId;
-
     if (!rawId) return NextResponse.json({ recebido: true });
 
-    // Ignorar tópicos não relacionados a pagamentos
     if (bodyType && !["payment", "merchant_order", "order"].includes(bodyType)) {
       return NextResponse.json({ recebido: true });
     }
 
-    // Novo formato Orders API: IDs começam com PAY ou ORD
-    const isOrdersApi = rawId.startsWith("PAY") || rawId.startsWith("ORD");
+    // Orders API — ORD... IDs
+    if (rawId.startsWith("ORD")) {
+      const order = await getOrder(rawId);
+      const reservaId = order?.external_reference;
+      const payStatus = order?.transactions?.payments?.[0]?.status ?? order?.status;
+      const paymentId = order?.transactions?.payments?.[0]?.id ?? rawId;
 
-    if (isOrdersApi) {
-      let reservaId: string | null = null;
-      let paymentStatus: string | null = null;
-
-      if (rawId.startsWith("ORD")) {
-        const order = await getOrder(rawId);
-        reservaId = order?.external_reference ?? null;
-        paymentStatus = order?.transactions?.payments?.[0]?.status ?? order?.status;
-      } else {
-        // PAY... → buscar order associada
-        const order = await getOrderByPaymentId(rawId);
-        reservaId = order?.external_reference ?? null;
-        paymentStatus = order?.transactions?.payments?.[0]?.status ?? order?.status;
+      if (reservaId && (payStatus === "processed" || payStatus === "approved")) {
+        await pagamentoService.processarPagamentoAprovadoOrders(paymentId, reservaId);
       }
-
-      if (!reservaId) return NextResponse.json({ recebido: true });
-
-      if (paymentStatus === "processed" || paymentStatus === "approved") {
-        await pagamentoService.processarPagamentoAprovadoOrders(rawId, reservaId);
-      }
-
       return NextResponse.json({ recebido: true });
     }
 
-    // Formato antigo: IDs numéricos (/v1/payments)
+    // Orders API — PAY... IDs: buscar transação no banco pelo mpPaymentId
+    if (rawId.startsWith("PAY")) {
+      await pagamentoService.processarPagamentoAprovadoOrders(rawId, rawId);
+      return NextResponse.json({ recebido: true });
+    }
+
+    // API legada (/v1/payments) — IDs numéricos
     if (bodyType === "merchant_order") return NextResponse.json({ recebido: true });
 
     const pagamento = await mpPayment.get({ id: Number(rawId) });
-
     if (pagamento.status === "approved") {
       await pagamentoService.processarPagamentoAprovado(rawId);
     }
