@@ -61,7 +61,41 @@ export class PagamentoService {
     };
   }
 
-  // Chamado pelo webhook quando pagamento é aprovado
+  // Novo formato Orders API (PAY.../ORD...)
+  async processarPagamentoAprovadoOrders(paymentId: string, reservaId: string) {
+    const transacao = await prisma.transacao.findFirst({ where: { reservaId } });
+    if (!transacao) throw new Error("Transação não encontrada");
+
+    if (transacao.status === "PRE_AUTORIZADO" || transacao.status === "PAGO") {
+      return { sucesso: true };
+    }
+
+    await Promise.all([
+      prisma.transacao.update({
+        where: { id: transacao.id },
+        data: {
+          mpPaymentId: paymentId,
+          mpStatus: "processed",
+          mpStatusDetail: "accredited",
+          status: "PRE_AUTORIZADO",
+          metodoPagamento: "MERCADO_PAGO",
+        },
+      }),
+      prisma.reserva.update({
+        where: { id: reservaId },
+        data: { status: "CONFIRMADA" },
+      }),
+    ]);
+
+    const reserva = await prisma.reserva.findUnique({ where: { id: reservaId } });
+    if (reserva?.veiculoId) {
+      await veiculoRepository.updateStatus(reserva.veiculoId, "ALUGADO");
+    }
+
+    return { sucesso: true };
+  }
+
+  // Chamado pelo webhook quando pagamento é aprovado (formato antigo /v1/payments)
   async processarPagamentoAprovado(mpPaymentId: string) {
     const pagamento = await mpPayment.get({ id: Number(mpPaymentId) });
 

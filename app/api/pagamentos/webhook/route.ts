@@ -1,48 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pagamentoService } from "@/services/PagamentoService";
-import { mpPayment } from "@/lib/mercadopago";
+import { mpPayment, getOrder, getOrderByPaymentId } from "@/lib/mercadopago";
 
-// O MP envia POST com query params: ?id=...&topic=payment
-// e também envia POST com body JSON para webhooks configurados no painel
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const topic = searchParams.get("topic") || searchParams.get("type");
-    const id = searchParams.get("id") || searchParams.get("data.id");
+    const idParam = searchParams.get("id") || searchParams.get("data.id");
 
-    // Suporte ao novo formato de webhook (topic = "payment")
-    let paymentId = id;
+    const body = await request.json().catch(() => ({}));
+    const bodyId = body?.data?.id ? String(body.data.id) : null;
+    const bodyType = body?.type ?? topic;
 
-    if (!paymentId) {
-      const body = await request.json().catch(() => ({}));
-      if (body?.data?.id) paymentId = String(body.data.id);
-      if (body?.type === "payment") paymentId = String(body?.data?.id);
-    }
+    const rawId = idParam || bodyId;
 
-    if (!paymentId || (topic && topic !== "payment" && topic !== "merchant_order")) {
-      // Ignorar tópicos que não são de pagamento (ex: subscriptions)
+    if (!rawId) return NextResponse.json({ recebido: true });
+
+    // Ignorar tópicos não relacionados a pagamentos
+    if (bodyType && !["payment", "merchant_order", "order"].includes(bodyType)) {
       return NextResponse.json({ recebido: true });
     }
 
-    if (topic === "merchant_order") {
-      // Para merchant_order, buscar o payment_id dentro do pedido
-      // O MP pode enviar este tópico — por segurança, apenas confirmar recebimento
+    // Novo formato Orders API: IDs começam com PAY ou ORD
+    const isOrdersApi = rawId.startsWith("PAY") || rawId.startsWith("ORD");
+
+    if (isOrdersApi) {
+      let reservaId: string | null = null;
+      let paymentStatus: string | null = null;
+
+      if (rawId.startsWith("ORD")) {
+        const order = await getOrder(rawId);
+        reservaId = order?.external_reference ?? null;
+        paymentStatus = order?.transactions?.payments?.[0]?.status ?? order?.status;
+      } else {
+        // PAY... → buscar order associada
+        const order = await getOrderByPaymentId(rawId);
+        reservaId = order?.external_reference ?? null;
+        paymentStatus = order?.transactions?.payments?.[0]?.status ?? order?.status;
+      }
+
+      if (!reservaId) return NextResponse.json({ recebido: true });
+
+      if (paymentStatus === "processed" || paymentStatus === "approved") {
+        await pagamentoService.processarPagamentoAprovadoOrders(rawId, reservaId);
+      }
+
       return NextResponse.json({ recebido: true });
     }
 
-    // Buscar detalhes do pagamento na API do MP para confirmar status
-    const pagamento = await mpPayment.get({ id: Number(paymentId) });
+    // Formato antigo: IDs numéricos (/v1/payments)
+    if (bodyType === "merchant_order") return NextResponse.json({ recebido: true });
+
+    const pagamento = await mpPayment.get({ id: Number(rawId) });
 
     if (pagamento.status === "approved") {
-      await pagamentoService.processarPagamentoAprovado(paymentId);
+      await pagamentoService.processarPagamentoAprovado(rawId);
     }
-    // Outros status (pending, rejected, cancelled) podem ser tratados se necessário
-    // Por ora, apenas "approved" dispara ações no banco
 
     return NextResponse.json({ recebido: true });
   } catch (error: any) {
     console.error("Erro no webhook MP:", error.message);
-    // Retornar 200 para evitar que o MP reenvie indefinidamente
     return NextResponse.json({ recebido: true, erro: error.message });
   }
 }
