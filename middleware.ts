@@ -1,10 +1,12 @@
-import NextAuth from "next-auth";
-import { authConfig } from "./auth.config";
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-const { auth } = NextAuth(authConfig);
+export async function middleware(request: NextRequest) {
+  const token = await getToken({
+    req: request,
+    secret: process.env.AUTH_SECRET,
+  });
 
-export default auth(function middleware(request) {
-  const session = request.auth;
   const pathname = request.nextUrl.pathname;
 
   const rotasProtegidas = ["/meus-alugueis", "/checkout", "/reserva"];
@@ -12,22 +14,21 @@ export default auth(function middleware(request) {
     pathname.startsWith(rota)
   );
 
-  if (ehRotaProtegida && !session) {
+  if (ehRotaProtegida && !token) {
     const callbackUrl = encodeURIComponent(
       pathname + request.nextUrl.search
     );
-    return Response.redirect(
+    return NextResponse.redirect(
       new URL(`/login?callbackUrl=${callbackUrl}`, request.url)
     );
   }
 
-  if (
-    pathname.startsWith("/dashboard") &&
-    session?.user?.role !== "ADMIN"
-  ) {
-    return Response.redirect(new URL("/", request.url));
+  if (pathname.startsWith("/dashboard") && token?.role !== "ADMIN") {
+    return NextResponse.redirect(new URL("/", request.url));
   }
-});
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
