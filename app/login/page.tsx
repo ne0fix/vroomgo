@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, Loader, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { autenticar } from '@/app/actions/login';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,29 +20,28 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
+
+    if (!email.trim()) {
+      setErro('Informe o e-mail.');
+      return;
+    }
+    if (!senha) {
+      setErro('Informe a senha.');
+      return;
+    }
+
     setCarregando(true);
 
-    try {
-      const resultado = await signIn('credentials', {
-        email,
-        senha,
-        redirect: false,
-      });
+    const resultado = await autenticar(email, senha);
 
-      if (!resultado?.ok) {
-        setErro(resultado?.error || 'Email ou senha inválidos');
-        setCarregando(false);
-        return;
-      }
-
-      // Login bem-sucedido
-      router.push(callbackUrl);
-      router.refresh();
-    } catch (erro) {
-      console.error('Erro ao fazer login:', erro);
-      setErro('Ocorreu um erro. Tente novamente.');
+    if (resultado.erro) {
+      setErro(resultado.erro);
       setCarregando(false);
+      return;
     }
+
+    router.push(callbackUrl);
+    router.refresh();
   };
 
   return (
